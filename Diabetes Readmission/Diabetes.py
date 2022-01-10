@@ -1,13 +1,125 @@
-from EDA_ML_Functions.EDA_functions import Data_Analysis
-from EDA_ML_Functions.ML_functions import ML_models
-from EDA_ML_Functions.NN_functions import ANN_tabular_class
-
+import seaborn as sns
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import sys
+import math
+
+sys.path.append("..")
+from EDA_ML_Package.EDA_functions import Data_Analysis
+from EDA_ML_Package.ML_functions import ML_models
+from EDA_ML_Package.NN_functions import ANN_tabular_class
 
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 15)
+DA = Data_Analysis()
+
+
+def bar_plot_count_percentage(data, att, attTarget, data2=pd.DataFrame, plotType='Both', reverse=False):
+    """ Creates a bar plot that compares 2 attributes, eg a random att vs
+    the target attribute
+
+    Parameters
+    ----------
+    df: (dataframe)
+    att: (str)
+    attTarget: (str)
+    path: (str) path where the plot will be saved
+
+    Output: buf (to be printed in the pdf)
+    """
+    def annotate_plot(gb, attTarget_X, plotType):
+        # Annotating the bar plots with the Per and count
+        for jj, p in enumerate(sp.patches):
+            # print(gb)
+            height = p.get_height()
+            height = 0 if math.isnan(height) is True else height
+            height = int(height) if height > 100 else round(height, 1)
+            gb = gb.sort_values(by=[attTarget_X])
+            gb = gb.reset_index(drop=True)
+            if plotType == "Per":
+                sp.text(p.get_x() + p.get_width()/2., height + 0, str(height) + "\n(" + str(gb['count'][jj]) + ")", ha="center", fontsize=13)
+            else:
+                sp.text(p.get_x() + p.get_width()/2., height + 0, str(height) + "\n(" + str(gb['Pop Per'][jj]) + ")", ha="center", fontsize=13)
+
+    def plot_details(ii, subSize, attTarget_X, plotType, axis_legend_flag=0):
+        # Setting the plot parameters
+        # sp.set_yticklabels(sp.get_yticks(), size=15)
+        sp.tick_params(labelsize=16)
+        if (subSize == ii+1) or ((plotType == "Both") and (axis_legend_flag == 1)):
+            sp.set_xlabel(att, fontsize=16)
+        else:
+            sp.set_xticks([])
+            sp.set_xlabel('')
+        if plotType == "Per":
+            sp.set_ylim([0, 100])
+        sp.set_title(att + "/ " + attTarget_X, fontsize=20)
+        sp.legend(prop={'size': 16})
+
+    # =========================================================================
+    # Making sure attTarget is list so can iterate through it
+    if isinstance(attTarget, list) is False:
+        attTarget = [attTarget]
+
+    if data2.empty:
+        df_list = [data]
+    else:
+        df_list = [data, data2]
+    # Setting the size of the plot/ affected by the number of subplots
+    subSize = 2*len(attTarget) if plotType == 'Both' else 1*len(attTarget)
+    plot_x_size = 3*subSize*len(df_list)*1.5 if ((subSize > 2) or (len(df_list) == 2)) else 14
+    plot_y_size = 4*subSize*len(df_list) if subSize > 2 else 8
+    fig, axes = plt.subplots(subSize, 1*len(df_list), figsize=(plot_x_size, plot_y_size))
+    if isinstance(axes, np.ndarray) is False:
+        axes = [axes]
+    if isinstance(axes[0], np.ndarray) is False:
+        # axes = [axes]
+        axes = np.reshape(axes, (-1, len(df_list)))
+    print(axes.shape)
+    print(axes)
+    att_original = att
+
+    df = data.copy(deep=True)
+
+    for zz, df in enumerate(df_list):
+        for ii, attTarget_X in enumerate(attTarget):
+            if reverse is True:  # Reversing the label with x axis
+                att = attTarget_X
+                attTarget_X = att_original
+
+            # isolating plot data
+            gb = DA.groupby_count_percentage(df, [att, attTarget_X])
+            x = gb[att].str.split(",", n=1, expand=True)
+            y = x[0].map(lambda x: x.lstrip('(').rstrip('aAbBcC'))
+            y = y.sort_values(ascending=True)
+            gb.iloc[y.index.tolist()]
+
+            sns.set_style("whitegrid")
+
+            if plotType == 'Both':
+                sp = sns.barplot(x=att, y="count", hue=attTarget_X, data=gb, ax=axes[0 + ii*2][zz])
+            if plotType == 'Count':
+                sp = sns.barplot(x=att, y="count", hue=attTarget_X, data=gb, ax=axes[0 + ii][zz])
+
+            if (plotType == 'Count') or (plotType == 'Both'):
+                annotate_plot(gb, attTarget_X, plotType)
+                plot_details(ii, subSize, attTarget_X, plotType, axis_legend_flag=0)
+                sp.set_ylabel('Count', fontsize=18)
+
+            if plotType == 'Both':
+                sp = sns.barplot(x=att, y="Pop Per", hue=attTarget_X, data=gb, ax=axes[1 + ii*2][zz])
+            elif plotType == 'Per':
+                sp = sns.barplot(x=att, y="Pop Per", hue=attTarget_X, data=gb, ax=axes[0 + ii][zz])
+
+            if (plotType == 'Per') or (plotType == 'Both'):
+                annotate_plot(gb, attTarget_X, plotType)
+                plot_details(ii, subSize, attTarget_X, plotType, axis_legend_flag=1)
+                sp.set_ylabel('Percentage', fontsize=18)
+
+    fig.tight_layout()
+    figure = sp.get_figure()
+    plt.show()
+    plt.close(figure)
 
 
 def EDA_Analysis():
@@ -17,9 +129,70 @@ def EDA_Analysis():
 
     '''# =========================== Importing Data =================================='''
 
-    df = pd.read_csv("Diabetes Data/diabetic_data.csv")
+    df = pd.read_csv("diabetic_data.csv")
     df = df.replace('?', np.nan)  # Replacing ? with Nan
 
+    med_keep = ['metformin', 'glipizide', 'glyburide', 'pioglitazone', 'rosiglitazone']
+
+    df['readmitted'] = df.readmitted.replace({'<30': 1, '>30': 0, 'NO': 0})
+    df_A1C = df[df.A1Cresult != "None"]
+    patients_Med = df[df.diabetesMed=="Yes"]
+
+    print(df.columns)
+    bar_plot_count_percentage(df, 'change', 'A1Cresult', data2=patients_Med, plotType='Per', reverse=True)
+    # sys.exit()
+
+
+    bar_plot_count_percentage(df, 'gender', ['A1Cresult', 'readmitted'], data2=df_A1C, plotType='Per', reverse=False)
+    # bar_plot_count_percentage(df, 'race', ['A1Cresult', 'readmitted'], data2=df_A1C, plotType='Per', reverse=False)
+    bar_plot_count_percentage(df, 'age', ['diabetesMed', 'A1Cresult', 'readmitted'], data2=df_A1C, plotType='Per', reverse=False)
+    bar_plot_count_percentage(df, 'readmitted', med_keep, plotType='Per', reverse=True)
+    bar_plot_count_percentage(df, 'readmitted', 'A1Cresult', data2=df_A1C, plotType='Per', reverse=True)
+
+#    bar_plot_count_percentage(df, 'readmitted', 'A1Cresult', plotType='Per', reverse=True)
+
+    sys.exit()
+
+    bar_plot_count_percentage(df, 'change', ['readmitted', 'A1Cresult', 'diabetesMed'], plotType='Per')
+    sys.exit()
+
+#    bar_plot_count_percentage(df, 'change', 'readmitted', plotType='Per')
+#    bar_plot_count_percentage(df, 'change', 'readmitted', plotType='Both')
+#    bar_plot_count_percentage(df, 'change', 'readmitted', plotType='Count')
+#    bar_plot_count_percentage(df, 'change', ['readmitted', 'A1Cresult'], plotType='Per')
+
+    medicines1 = ['metformin', 'glimepiride', 'glipizide', 'repaglinide', 'nateglinide', 'chlorpropamide', 'glyburide',
+                  'pioglitazone', 'rosiglitazone', 'acarbose', 'glyburide-metformin']
+
+    medicines2 = ['glipizide-metformin', 'tolazamide', 'tolbutamide', 'glimepiride-pioglitazone', 'citoglipton', 'examide',
+                  'troglitazone', 'acetohexamide', 'miglitol', 'metformin-rosiglitazone', 'metformin-pioglitazone']
+
+    medicines = medicines1 + medicines2
+
+    df_med = pd.DataFrame(columns=['medicine', 'Down', 'No', 'Steady', 'Up'])
+
+    for i, medic in enumerate(medicines):
+        df_med_distr = DA.groupby_count_percentage(df, [medic])
+
+        # print(df_med_distr[df_med_distr[medic] == 'Down']['count'][0])
+        # print(df_med['Down'].iloc[0])
+        medicine_action_list = []
+        medicine_action_list.append(medic)
+        for xx in ['Down', 'No', 'Steady', 'Up']:
+            try:
+                medicine_action_list.append(df_med_distr[df_med_distr[medic] == xx]['count'].iloc[-1])
+            except Exception:
+                medicine_action_list.append("-")
+
+        df_med.loc[i] = medicine_action_list
+
+    print(df_med)
+    df_med = df_med.sort_values(by=['No'])
+    med_keep = df_med.medicine.to_list()[0:5]
+
+    bar_plot_count_percentage(df, 'readmitted', med_keep, plotType='Per', reverse=True)
+
+    sys.exit()
     '''# ------------------- EDA -----------------------------------------------------'''
 
     DA.descriptive_analysis(df, 'readmitted')
@@ -145,7 +318,6 @@ def EDA_Analysis():
 
 
 def ML_Analusis():
-    DA = Data_Analysis()
     ML = ML_models()
 
     X_tr = pd.read_csv("X_tr.csv")

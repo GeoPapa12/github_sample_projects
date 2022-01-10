@@ -180,15 +180,22 @@ class Data_Analysis():
 
         Output: table
         """
+
+        # 1. Print describe()
         print(data.describe())
-        self.table_in_PDF(data.describe())
+
         df = round(data.copy(deep=True), 2)
 
-        self.size_df(df)
+        # 2. Print df size
+        print('\nnumber of attributes: ', len(df.columns), '/ number of instances: ', len(df), '\n')
+
         # tc: table characteristics
         tc = pd.DataFrame(df.isnull().sum(), columns=['NaN'])
+        tc['NaN %'] = round(tc['NaN']/len(df)*100, 1)
+
         tc['Unique'] = [len(df[i].unique()) for i in list(df.columns)]
         tc['type'] = df.dtypes
+        tc['memory'] = df.memory_usage(deep=True)
 
         indexValue = 3
         tc['values'] = [df[clm].unique().tolist()[:indexValue] for clm in list(df.columns)]
@@ -208,31 +215,30 @@ class Data_Analysis():
         tc = tc.reset_index()
         tc = tc.astype(str)
 
-        table = self.table_in_PDF(tc)
+        # 3. print table characteristics
         print(tc)
 
         if target_attribute != 'none':
             self.attribute_range(df, target_attribute)
 
-        return table
-
     def attribute_range(self, data, target_attribute):
         """ A table is created with the range of values of an attribute
         The table is printed in the pdf report
-
+    
         Parameters
         ----------
         df: (dataframe)
         target_attribute: (str)
-
+    
         Output: -
         """
         df = data.copy(deep=True)
         dx = self.groupby_count_percentage(df, [target_attribute])
         print('\nValue Distribution of the Target attribute\n')
         print(dx)
-        self.table_in_PDF(dx)
         return dx
+
+
 
     '''========================================================================
                                     Data Transformation
@@ -319,7 +325,7 @@ class Data_Analysis():
         # self.add_text("> Codes Categories creation for " + columnName, style="Heading3", fontsize=13)
 
         # df[columnName] = df[columnName].astype(str)
-        print(columnName)
+        # print(columnName)
 
         cat_values = df[columnName].astype("category").cat.codes.astype('category')
         map_dict = dict(enumerate(df[columnName].astype('category').cat.categories))
@@ -469,85 +475,111 @@ class Data_Analysis():
         data = data.drop(['percentage', 'count'], axis=1)
         return df_gb
 
-    def bar_plot_count_percentage(self, data, att, attTarget, title, plotType='Both'):
-        """ Creates a bar plot that compares 2 attributes, eg a random att vs
-        the target attribute
+def bar_plot_count_percentage(self, data, att, attTarget, data2=pd.DataFrame, plotType='Both', reverse=False):
+    """ Creates a bar plot that compares 2 attributes, eg a random att vs
+    the target attribute
 
-        Parameters
-        ----------
-        df: (dataframe)
-        att: (str)
-        attTarget: (str)
-        path: (str) path where the plot will be saved
+    Parameters
+    ----------
+    df: (dataframe)
+    att: (str)
+    attTarget: (str)
+    path: (str) path where the plot will be saved
 
-        Output: buf (to be printed in the pdf)
-        """
-        self.add_text("Bar Plot: " + att + " vs " + attTarget)
+    Output: buf (to be printed in the pdf)
+    """
+    def annotate_plot(gb, attTarget_X, plotType):
+        # Annotating the bar plots with the Per and count
+        for jj, p in enumerate(sp.patches):
+            # print(gb)
+            height = p.get_height()
+            height = 0 if math.isnan(height) is True else height
+            height = int(height) if height > 100 else round(height, 1)
+            gb = gb.sort_values(by=[attTarget_X])
+            gb = gb.reset_index(drop=True)
+            if plotType == "Per":
+                sp.text(p.get_x() + p.get_width()/2., height + 0, str(height) + "\n(" + str(gb['count'][jj]) + ")", ha="center", fontsize=13)
+            else:
+                sp.text(p.get_x() + p.get_width()/2., height + 0, str(height) + "\n(" + str(gb['Pop Per'][jj]) + ")", ha="center", fontsize=13)
 
-        df = data.copy(deep=True)
-        gb = self.groupby_count_percentage(df, [att, attTarget])
-
-        x = gb[att].str.split(",", n=1, expand=True)
-        y = x[0].map(lambda x: x.lstrip('(').rstrip('aAbBcC'))
-        # #    y = y.astype('float64')
-        y = y.sort_values(ascending=True)
-        gb.iloc[y.index.tolist()]
-
-        sns.set_style("whitegrid")
-
-        subSize = 2 if plotType == 'Both' else 1
-
-        fig, axes = plt.subplots(subSize, 1, figsize=(14, 8))
-
-        if plotType == 'Both':
-            sp = sns.barplot(x=att, y="count", hue=attTarget, data=gb, ax=axes[0])
-        if plotType == 'Count':
-            sp = sns.barplot(x=att, y="count", hue=attTarget, data=gb)
-
-        if plotType != 'Per':
-            _ = plt.setp(sp.get_xticklabels(), rotation=90)  # Rotate labels
-            sp.set_yticklabels(sp.get_yticks(), size=15)
+    def plot_details(ii, subSize, attTarget_X, plotType, axis_legend_flag=0):
+        # Setting the plot parameters
+        # sp.set_yticklabels(sp.get_yticks(), size=15)
+        sp.tick_params(labelsize=16)
+        if (subSize == ii+1) or ((plotType == "Both") and (axis_legend_flag == 1)):
+            sp.set_xlabel(att, fontsize=16)
+        else:
             sp.set_xticks([])
             sp.set_xlabel('')
-            sp.set_title(title, fontsize=24)
-            sp.set_ylabel('Count', fontsize=18)
-            sp.legend(prop={'size': 16})
+        if plotType == "Per":
+            sp.set_ylim([0, 100])
+        sp.set_title(att + "/ " + attTarget_X, fontsize=20)
+        sp.legend(prop={'size': 16})
 
-            for p in sp.patches:
-                height = p.get_height()
-                height = 0 if math.isnan(height) is True else height
-                height = int(height)
-                sp.text(p.get_x() + p.get_width()/2., height + 3, height, ha="center", fontsize=15)
+    # =========================================================================
+    # Making sure attTarget is list so can iterate through it
+    if isinstance(attTarget, list) is False:
+        attTarget = [attTarget]
 
-        if plotType == 'Both':
-            sp = sns.barplot(x=att, y="Pop Per", hue=attTarget, data=gb, ax=axes[1])
-        elif plotType == 'Per':
-            sp = sns.barplot(x=att, y="Pop Per", hue=attTarget, data=gb)
+    if data2.empty:
+        df_list = [data]
+    else:
+        df_list = [data, data2]
+    # Setting the size of the plot/ affected by the number of subplots
+    subSize = 2*len(attTarget) if plotType == 'Both' else 1*len(attTarget)
+    plot_x_size = 3*subSize*len(df_list)*1.5 if ((subSize > 2) or (len(df_list) == 2)) else 14
+    plot_y_size = 4*subSize*len(df_list) if subSize > 2 else 8
+    fig, axes = plt.subplots(subSize, 1*len(df_list), figsize=(plot_x_size, plot_y_size))
+    if isinstance(axes, np.ndarray) is False:
+        axes = [axes]
+    if isinstance(axes[0], np.ndarray) is False:
+        # axes = [axes]
+        axes = np.reshape(axes, (-1, len(df_list)))
+    print(axes.shape)
+    print(axes)
+    att_original = att
 
-        if plotType != 'Count':
-            for ii, p in enumerate(sp.patches):
-                height = p.get_height()
-                height = round(height, 1)
-                sp.text(p.get_x() + p.get_width()/2., height + 3, height, ha="center", fontsize=15)
+    df = data.copy(deep=True)
 
-            sp.set_xlabel(att, fontsize=18)
-            sp.set_ylabel('Percentage', fontsize=18)
-            sp.set_yticklabels(sp.get_yticks(), size=15)
-            # sp.set_xticklabels(sp.get_xticks(), size=15)
-            sp.tick_params(labelsize=16)
-            sp.legend(prop={'size': 16})
+    for zz, df in enumerate(df_list):
+        for ii, attTarget_X in enumerate(attTarget):
+            if reverse is True:  # Reversing the label with x axis
+                att = attTarget_X
+                attTarget_X = att_original
 
-        fig.tight_layout()
+            # isolating plot data
+            gb = self.groupby_count_percentage(df, [att, attTarget_X])
+            x = gb[att].str.split(",", n=1, expand=True)
+            y = x[0].map(lambda x: x.lstrip('(').rstrip('aAbBcC'))
+            y = y.sort_values(ascending=True)
+            gb.iloc[y.index.tolist()]
 
-        self.create_directory()
+            sns.set_style("whitegrid")
 
-        figure = sp.get_figure()
-        buf = self.image_in_PDF(figure, y=4)
-        plt.show()
-        # figure.savefig(self.path + '/' + att + '.png', dpi=500, bbox_inches='tight')
-        plt.close(figure)
+            if plotType == 'Both':
+                sp = sns.barplot(x=att, y="count", hue=attTarget_X, data=gb, ax=axes[0 + ii*2][zz])
+            if plotType == 'Count':
+                sp = sns.barplot(x=att, y="count", hue=attTarget_X, data=gb, ax=axes[0 + ii][zz])
 
-        return buf
+            if (plotType == 'Count') or (plotType == 'Both'):
+                annotate_plot(gb, attTarget_X, plotType)
+                plot_details(ii, subSize, attTarget_X, plotType, axis_legend_flag=0)
+                sp.set_ylabel('Count', fontsize=18)
+
+            if plotType == 'Both':
+                sp = sns.barplot(x=att, y="Pop Per", hue=attTarget_X, data=gb, ax=axes[1 + ii*2][zz])
+            elif plotType == 'Per':
+                sp = sns.barplot(x=att, y="Pop Per", hue=attTarget_X, data=gb, ax=axes[0 + ii][zz])
+
+            if (plotType == 'Per') or (plotType == 'Both'):
+                annotate_plot(gb, attTarget_X, plotType)
+                plot_details(ii, subSize, attTarget_X, plotType, axis_legend_flag=1)
+                sp.set_ylabel('Percentage', fontsize=18)
+
+    fig.tight_layout()
+    figure = sp.get_figure()
+    plt.show()
+    plt.close(figure)
 
     def hist_plot(self, data):
         """ Creates a histogram of the attributes
@@ -735,47 +767,93 @@ class Data_Analysis():
         # fig.savefig("donut 3.pdf", bbox_inches='tight')
         return buf
 
-    def bar_hist_EDA_plots(self, df, plot_type='boxplot', no_rows=0):
-        if no_rows == 0:
-            no_rows = divmod(len(df.columns), 10)[0]
+    def box_hist_EDA_plots(self, df, plot_type='boxplot', target_att='', density_v=False, no_rows=-1):
+        """Function that generates histogram/ box plots for the numerical attributes
+        and count for the object attributes"""
+        def plot_hist():
+            hist_list = []
+            labels_list = []
+            values_list = df_copy[target_att].unique().tolist()
+            values_list.sort()
+            for i, val in enumerate(values_list):
+                # plt.hist(df_copy.loc[df_copy[target_att] == val, col].values, **kwargs, label=str(val), color=colors[i])
+                hist_list.append(df_copy.loc[df_copy[target_att] == val, col].values)
+                labels_list.append(str(val))
+
+            plt.hist(hist_list, **kwargs, label=labels_list, color=colors[0:len(hist_list)])
+            plt.xticks(fontsize=12)
+            plt.legend()
+
+        df_copy = df.copy()
+
+        # find optimum number of rows if not given
+        if no_rows == -1:
+            no_rows = divmod(len(df_copy.columns), 10)[0]
+
+        # figure quality
         fig = plt.figure(figsize=(25, 5*no_rows))
-        for i, col in enumerate(df.columns, 1):
-            if(df[col].dtype == np.float64 or df[col].dtype == np.int64):
 
-                plt.subplot(no_rows, math.ceil(len(df.columns)/no_rows), i)
+        kwargs = dict(alpha=0.5, bins=20, density=density_v)  # , stacked=False)
+        colors = ['b', 'r', 'g']
+
+        # loop through all attributes
+        for i, col in enumerate(df_copy.columns, 1):
+
+            # numerical attributes
+            if (df_copy[col].dtype == np.float64 or df_copy[col].dtype == np.int64):
+                plt.subplot(no_rows, math.ceil(len(df_copy.columns)/no_rows), i)
+
+                # box plot
                 if plot_type == 'boxplot':
-                    plt.boxplot(df[~df[col].isnull()][col])
+                    plt.boxplot(df_copy[~df_copy[col].isnull()][col])
                     ax = plt.gca()
                     ax.axes.xaxis.set_ticklabels([])
-                else:
-                    plt.hist(df[~df[col].isnull()][col])
+
+                else:  # histogram
+                    if target_att != '':
+                        plot_hist()
+                    else:
+                        plt.hist(df_copy[~df_copy[col].isnull()][col])
 
                 plt.title(col, fontsize=20)
-            else:
-                plt.subplot(no_rows, math.ceil(len(df.columns)/no_rows), i)
-                if len(df[col].unique()) <= 5:
-                    sp = sns.countplot(x=col, data=df)
-                    plt.setp(sp.get_xticklabels(), ha="right", rotation=25, fontsize=8)
-                    sp.set(xlabel=None)
-                else:
+
+            else:  # object attributes
+                plt.subplot(no_rows, math.ceil(len(df_copy.columns)/no_rows), i)
+
+                if len(df_copy[col].unique()) <= 15:
+                    if target_att != '':  # class histogram
+                        df_copy[col], map_dict = self.categorise_codes(df_copy, col)
+                        plot_hist()
+                        plt.text(0.35, 10, str(map_dict), size=15)
+                    else:  # count plot
+                        sp = sns.countplot(x=col, data=df_copy)
+                        plt.setp(sp.get_xticklabels(), ha="right", rotation=25, fontsize=10)
+                        sp.set(xlabel=None)
+
+                else:  # empty plot
+                    plt.text(0.35, 0.35, str(len(df_copy[col].unique())) + " unique values", size=15)
                     ax = plt.gca()
                     ax.axes.xaxis.set_ticklabels([])
                 plt.title(col, fontsize=20)
+
         plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=5.0)
         plt.show()
         return fig
 
-    def hist_class_EDA_plots(self, df, target_att, no_rows=0):
-        if no_rows == 0:
+    def hist_class_EDA_plots(self, df, target_att, no_rows=-1):
+
+        if no_rows == -1:
             no_rows = divmod(len(df.columns), 10)[0]
         fig = plt.figure(figsize=(25, 5*no_rows))
 
         kwargs = dict(alpha=0.5, bins=20, density=True, stacked=True)
         colors = ['b', 'r', 'g']
 
+
         # Plot
         for j, col in enumerate(df.columns, 1):
             plt.subplot(no_rows, math.ceil(len(df.columns)/no_rows), j)
+
             if(df[col].dtype == np.float64 or df[col].dtype == np.int64):
                 for i, val in enumerate(df[target_att].unique().tolist()):
                     plt.hist(df.loc[df[target_att] == val, col].values, **kwargs, label=str(val), color=colors[i])
@@ -786,6 +864,7 @@ class Data_Analysis():
         plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=5.0)
         plt.show()
         return fig
+
 
     '''========================================================================
                                     Statistics

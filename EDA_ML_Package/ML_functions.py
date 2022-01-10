@@ -427,15 +427,19 @@ class ML_models():
         results_dict = {}
         results_dict['dtype'] = 'cv'
         for i, cv_metric in enumerate(scoring_list):
-            results_dict[scoring_names[i]] = [round(cv_results['test_' + cv_metric].mean(), 3)]
+            try:
+                results_dict[scoring_names[i]] = [round(cv_results['test_' + cv_metric].mean(), 3)]
+            except Exception:
+                results_dict[scoring_names[i]] = [round(cv_results['test_' + cv_metric + '_weighted'].mean(), 3)]
+
         results_dict['fit_tm'] = [round(cv_results['fit_time'].mean(), 3)]
         results_dict['score_tm'] = [round(cv_results['score_time'].mean(), 3)]
         results_dict['model'] = modelName
 
         return round(pd.DataFrame(results_dict), 3)
 
-    def ML_Basic_Models(self, X, y, threshold=0.5, test_size=0.2, test_case=1):
-        '''
+    def ML_Basic_Models(self, X, y, threshold=0.5, test_size=0.2, test_case=1, X_ex_test=pd.DataFrame(), y_ex_test=pd.DataFrame()):
+        '''        
         Lightweight script to test many models and find winners
         :param X_train: training split
         :param y_train: training target vector
@@ -450,6 +454,10 @@ class ML_models():
         best_thres = []
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=self.random_state)
+
+        if X_ex_test.empty is False:
+            X_test = X_ex_test
+            y_test = y_ex_test
 
         models = [
           ('LogReg', LogisticRegression()),
@@ -480,8 +488,8 @@ class ML_models():
                 clf_RF = clf
                 y_pred_RF = y_pred
 
-            # Data for the ROC curve
-            if len(np.unique(y_test)) == 2:
+            if len(y_train.unique()) == 2:
+                # Data for the ROC curve
                 fpr_log, tpr_log, thresholds = roc_curve(y_test, y_pred_prob)
                 FRP_list.append(fpr_log)
                 TRP_list.append(tpr_log)
@@ -493,7 +501,10 @@ class ML_models():
 
         df_results = pd.concat([df_test_results, df_cv_results])
         df_results = df_results.reset_index(drop=True)
-        df_results = df_results.sort_values(by=['dtype', 'f1'], ascending=False)
+        try:
+            df_results = df_results.sort_values(by=['dtype', 'f1'], ascending=False)
+        except Exception:
+            pass  # Multiclass
 
         # ROC curve/ Confusion Matrix/ Feature Importance/ Learning Curve
         if len(np.unique(y_test)) == 2:
@@ -753,7 +764,7 @@ class ML_models():
 
         # return df_unsuper, story
 
-    def DBSCAN_plot(self, df_data, no_of_components, dbscan_lbls, X, y_tar, core_samples_mask, n_clusters_, plot_title, eps_value, min_samples_value, story):
+    def DBSCAN_plot(self, df_data, no_of_components, dbscan_lbls, X, y_tar, core_samples_mask, n_clusters_, plot_title, eps_value, min_samples_value, story, text_on_plot=0):
         ''' DBSCAN PLOT '''
         # Black removed and is used for noise instead.
         fig, ax = plt.subplots(figsize=(12, 12))
@@ -808,7 +819,7 @@ class ML_models():
                 plt.plot(xy_neg[:, 0], xy_neg[:, 1], 'o', markerfacecolor=tuple(col),
                          markeredgecolor='k', markersize=4, marker="v")
 
-        if 2 == 1:
+        if text_on_plot == 1:
             for i, xy_point in enumerate(X):
                 if no_of_components == 3:
                     ax.text(xy_point[0]+0.05, xy_point[1]+0.05, xy_point[2]+0.05, str(i+1))

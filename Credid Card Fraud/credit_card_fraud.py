@@ -49,16 +49,18 @@ df = pd.concat([df1, df0])
 
 # sys.exit()
 # ----------------- Visuals ----------------------
-plt_obj = DA.hist_class_EDA_plots(df, "Class", no_rows=3)
+# plt_obj = DA.hist_class_EDA_plots(df, "Class", no_rows=3)
+plt_obj = DA.box_hist_EDA_plots(df, plot_type='hist', target_att="Class", density=True, no_rows=3)
+
 # PDF.image_in_PDF(plt_obj, x=7, y=7)
 
 plt_obj = DA.heatmap_corr_plot(df)
 # PDF.image_in_PDF(plt_obj, x=7, y=7)
 
-plt_obj = DA.bar_hist_EDA_plots(df, 'hist', no_rows=3)
+plt_obj = DA.box_hist_EDA_plots(df, 'hist', no_rows=3)
 # PDF.image_in_PDF(plt_obj, x=7, y=7)
 
-plt_obj = DA.bar_hist_EDA_plots(df, no_rows=3)
+plt_obj = DA.box_hist_EDA_plots(df, no_rows=3)
 # PDF.image_in_PDF(plt_obj, x=7, y=7)
 
 

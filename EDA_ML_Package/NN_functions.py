@@ -102,12 +102,13 @@ class ANN_tabular_class():
 
         return model
 
-    def create_and_fit_model(self, X, y, batch_size, epochs, lyrs=[3], opt='Adam', dr=0.2, layers_act='relu', verbose=0, NNtype='Classification'):
-        if NNtype == 'Classification':
+    def create_and_fit_model(self, X, y, batch_size, epochs, lyrs=[3], opt='Adam', dr=0.2, layers_act='relu', verbose=0, NN_problem_type='Classification'):
+        if NN_problem_type == 'Classification':
             NN_model = self.create_model(X, lyrs, opt, dr, layers_act)
         else:
             NN_model = self.create_model_regression(X, lyrs, opt, dr, layers_act)
-        NN_results = self.fit_model(X, y, NN_model, batch_size, epochs, NNtype, verbose)
+
+        NN_results = self.fit_model(X, y, NN_model, batch_size, epochs, NN_problem_type, verbose)
         NN_results['layers'] = str(lyrs)
         NN_results['opt'] = opt
         NN_results['dr'] = dr
@@ -119,7 +120,7 @@ class ANN_tabular_class():
 
         return NN_results
 
-    def fit_model(self, X, y, model, batch_size, epochs, NNtype, verbose=2):
+    def fit_model(self, X, y, model, batch_size, epochs, NN_problem_type, verbose=2):
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=101)
         X_train, X_test = self.scale_data(X_train, X_test)
@@ -128,7 +129,7 @@ class ANN_tabular_class():
 
         model.fit(x=X_train, y=y_train, validation_data=(X_test, y_test), batch_size=batch_size, epochs=epochs, callbacks=[early_stop], verbose=verbose)
 
-        if NNtype == 'Classification':
+        if NN_problem_type == 'Classification':
             training = model.history
             losses = pd.DataFrame(model.history.history)
             try:
@@ -201,7 +202,7 @@ class ANN_tabular_class():
         model_keras = KerasClassifier(self.create_model, X=X, verbose=0)
         param_grid = dict(batch_size=self.batch_size, epochs=self.epochs)
 
-        grid_result = self.search_the_grid(model_keras, param_grid, 'batch_size')
+        grid_result = self.search_the_grid(X, y, model_keras, param_grid, 'batch_size')
 
         return grid_result.best_params_['batch_size'], grid_result.best_params_['epochs']
 
@@ -209,7 +210,7 @@ class ANN_tabular_class():
         model_keras = KerasClassifier(self.create_model, X=X, dr=dr, epochs=epoch, batch_size=batch_size, verbose=0)
         param_grid = dict(opt=self.optimizer)
 
-        grid_result = self.search_the_grid(model_keras, param_grid, 'opt')
+        grid_result = self.search_the_grid(X, y, model_keras, param_grid, 'opt')
 
         return grid_result.best_params_['opt']
 
@@ -217,7 +218,7 @@ class ANN_tabular_class():
         model_keras = KerasClassifier(self.create_model, X=X, opt=optimizer, dr=0, epochs=epoch, batch_size=batch_size, verbose=0)
         param_grid = dict(lyrs=self.hidden_layers)
 
-        grid_result = self.search_the_grid(model_keras, param_grid, 'lyrs')
+        grid_result = self.search_the_grid(X, y, model_keras, param_grid, 'lyrs')
 
         return grid_result.best_params_['lyrs']
 
@@ -225,7 +226,7 @@ class ANN_tabular_class():
         model_keras = KerasClassifier(self.create_model, X=X, lyrs=lyrs, opt=optimizer, epochs=epoch, batch_size=batch_size, verbose=0)
         param_grid = dict(dr=self.drops)
 
-        grid_result = self.search_the_grid(model_keras, param_grid, 'dr')
+        grid_result = self.search_the_grid(X, y, model_keras, param_grid, 'dr')
 
         return grid_result.best_params_['dr']
 
@@ -233,25 +234,34 @@ class ANN_tabular_class():
         model_keras = KerasClassifier(self.create_model, X=X, lyrs=lyrs, opt=optimizer, dr=dr, epochs=epoch, batch_size=batch_size, verbose=0)
         param_grid = dict(layers_act=self.activation)
 
-        grid_result = self.search_the_grid(model_keras, param_grid, 'layers_act')
+        grid_result = self.search_the_grid(X, y, model_keras, param_grid, 'layers_act')
 
         return grid_result.best_params_['layers_act']
 
     def chain_optimazation(self, X, y, hidden_layers=[[6], [6, 4], [6, 4, 2]]):
-        opt_batch, opt_epoch = ANNtab.optimum_batch_epoch(X, y)
+        opt_batch, opt_epoch = self.optimum_batch_epoch(X, y)
         # =======================================================================
-        opt_optimizer = ANNtab.optimum_optimizer(X, y, opt_batch, opt_epoch)
+        opt_optimizer = self.optimum_optimizer(X, y, opt_batch, opt_epoch)
         # =======================================================================
-        opt_layers = ANNtab.optimum_hidden_neurons(X, y, opt_batch, opt_epoch, opt_optimizer)
+        opt_layers = self.optimum_hidden_neurons(X, y, opt_batch, opt_epoch, opt_optimizer)
         # =======================================================================
-        opt_dropout = ANNtab.optimum_dropout(X, y, opt_batch, opt_epoch, opt_layers, opt_optimizer)
+        opt_dropout = self.optimum_dropout(X, y, opt_batch, opt_epoch, opt_layers, opt_optimizer)
         # =======================================================================
-        opt_act = ANNtab.optimum_activation(X, y, opt_batch, opt_epoch, opt_layers, opt_optimizer, opt_dropout)
+        opt_act = self.optimum_activation(X, y, opt_batch, opt_epoch, opt_layers, opt_optimizer, opt_dropout)
         # =======================================================================
-        opt_model = ANNtab.create_model(X, lyrs=opt_layers, opt=opt_optimizer, dr=opt_dropout, layers_act=opt_act)
-        ANNtab.fit_model(X, y, opt_model, opt_batch, opt_epoch)
+        opt_model = self.create_model(X, lyrs=opt_layers, opt=opt_optimizer, dr=opt_dropout, layers_act=opt_act)
 
-        return dict(opt_batch=opt_batch, opt_optimizer=opt_optimizer, opt_layers=opt_layers, opt_dropout=opt_dropout, opt_act=opt_act)
+        if len(y.unique()) < 10:
+            NN_problem_type = "Classification"
+        else:
+            NN_problem_type = "Regression"
+
+        NN_results = self.fit_model(X, y, opt_model, opt_batch, opt_epoch, NN_problem_type)
+        NN_results['layers'] = str(opt_layers)
+        NN_results['opt'] = str(opt_dropout)
+        NN_results['dr'] = str(opt_dropout)
+
+        return NN_results, dict(opt_batch=opt_batch, opt_optimizer=opt_optimizer, opt_layers=opt_layers, opt_dropout=opt_dropout, opt_act=opt_act)
 
     def grid_optimazation(self, X, layers):
         model_keras = KerasClassifier(self.create_model, X=X, verbose=0)
@@ -262,11 +272,11 @@ class ANN_tabular_class():
         activation = ['relu', 'tanh', 'sigmoid']
         param_grid = dict(opt=optimizer, batch_size=batch_size, epochs=epochs, lyrs=layers, dr=drops, layers_act=activation)
 
-        grid_result = self.search_the_grid(model_keras, param_grid)
+        grid_result = self.search_the_grid(X, y, model_keras, param_grid)
 
         return grid_result.best_params_
 
-    def search_the_grid(self, model_keras, param_grid, title=''):
+    def search_the_grid(self, X, y, model_keras, param_grid, title=''):
         # search the grid
         grid = RandomizedSearchCV(estimator=model_keras,    # GridSearchCV/ RandomizedSearchCV
                                   param_distributions=param_grid,   # param_grid/ param_distributions
@@ -323,7 +333,7 @@ if __name__ == '__main__':
     print('------')
     # =======================================================================
     sys.exit()
-    opt_act = ANNtab.chain_optimazation(X, y, hidden_layers=[[6], [6, 4], [6, 4, 2]])
+    opt_act, _ = ANNtab.chain_optimazation(X, y, hidden_layers=[[6], [6, 4], [6, 4, 2]])
     # =======================================================================
 
 # predictions = model.predict_classes(X_test)

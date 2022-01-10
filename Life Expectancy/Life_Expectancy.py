@@ -9,8 +9,8 @@ from sklearn.preprocessing import scale
 import os
 import math
 
-from EDA_ML_Functions.EDA_functions import Data_Analysis
-from EDA_ML_Functions.PDF_report import PDF_reporting
+from EDA_ML_Package.EDA_functions import Data_Analysis
+from EDA_ML_Package.PDF_report import PDF_reporting
 
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 15)
@@ -110,8 +110,8 @@ PDF = PDF_reporting()
 
 # ------------------- Loading Data ------------------------------
 
-df = pd.read_csv("Life_Expectancy Data/Life Expectancy Data.csv")
-data = pd.read_csv('Life_Expectancy Data/2015.csv')
+df = pd.read_csv("Life Expectancy Data.csv")
+data = pd.read_csv('2015.csv')
 data = data[['Country', 'Region', 'Happiness Rank', 'Happiness Score']]
 data['Year'] = 2015
 df = pd.merge(df, data, how="left", on=["Country", "Year"])
@@ -140,10 +140,10 @@ df_imp = impute_dataset(df)
 
 df = DA.outlier_winsorize(df, ['GDP'])  # modify outliers
 df = impute_dataset(df)
-plt_obj = DA.bar_hist_EDA_plots(df, no_rows=3)
+plt_obj = DA.box_hist_EDA_plots(df, no_rows=3)
 PDF.add_text("Box Plot", style="Heading1", fontsize=24)
 PDF.image_in_PDF(plt_obj, x=6, y=3)
-plt_obj = DA.bar_hist_EDA_plots(df, 'hist', no_rows=3)
+plt_obj = DA.box_hist_EDA_plots(df, 'hist', no_rows=3)
 PDF.add_text("Hist Plot", style="Heading1", fontsize=24)
 PDF.image_in_PDF(plt_obj, x=6, y=3)
 
