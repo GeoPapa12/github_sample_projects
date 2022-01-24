@@ -219,7 +219,7 @@ class ML_models():
 
     def confusion_matrix_plot(self, Ytest, Ypred, modelName, percentage=1):
 
-        plt.figure(figsize=(9, 9))
+        fig = plt.figure(figsize=(9, 9))
         if percentage == 1:
             sns.heatmap(confusion_matrix(Ytest, Ypred)/len(Ypred), annot=True, fmt=".3f", linewidths=.5, square=True, cmap='Greens_r')
         else:
@@ -230,14 +230,14 @@ class ML_models():
         plt.title(all_sample_title, size=12)
         # plt.savefig(self.path + 'confusion_matrix_' + self.title_type + '_' + modelName + '.png', dpi=500, bbox_inches='tight')
 
-        buf = self.image_in_PDF(plt, x=3, y=3)
-        plt.show()
+        self.image_in_PDF(plt, x=3, y=3)  # buf =
+        # plt.show()
 
-        return buf
+        return fig
 
     def ROC_curve(self, names, FRP_list, TRP_list, thresholds_list, best_thres, title=''):
 
-        plt.figure(figsize=(12, 12))
+        fig = plt.figure(figsize=(12, 12))
 
         if len(names) <= 3:
             for x in range(len(names)):
@@ -258,10 +258,10 @@ class ML_models():
         plt.title(title)
 
         # plt.savefig('ROC_curve' + title + '.png', dpi=500, bbox_inches='tight')
-        buf = self.image_in_PDF(plt, x=6, y=6)
-        plt.show()
-
-        return buf
+        self.image_in_PDF(plt, x=6, y=6)  # buf =
+        # plt.show()
+        print('ROC Curve')
+        return fig
 
     def precision_recall_plot(self, model, X_train, y_train, title):
         y_scores = model.predict_proba(X_train)
@@ -305,7 +305,7 @@ class ML_models():
         values_to_plot = featureImportances.iloc[:num].values.ravel()[::-1]
         feature_labels = list(featureImportances.iloc[:num].index)[::-1]
 
-        plt.figure(num=None, figsize=(8, 12), dpi=250, facecolor='w', edgecolor='k')
+        fig = plt.figure(num=None, figsize=(8, 12), dpi=250, facecolor='w', edgecolor='k')
         plt.barh(ylocs, values_to_plot, align='center')
         plt.ylabel('Features')
         plt.xlabel('Importance Score')
@@ -315,9 +315,9 @@ class ML_models():
         # figure = plt.get_figure()
         # featImp.savefig(self.path + 'Positive Feature Importance_' + self.title_type + '.png', dpi=500, bbox_inches='tight')
 
-        buf = self.image_in_PDF(plt, x=8, y=5)
+        self.image_in_PDF(plt, x=8, y=5)  # buf =
 
-        return buf
+        return fig
 
     def plot_learning_curve(self, model, title, X, y, ylim=None, cv=10, n_jobs=1, train_sizes=np.linspace(.1, 1.0, 10)):
         """
@@ -439,7 +439,7 @@ class ML_models():
         return round(pd.DataFrame(results_dict), 3)
 
     def ML_Basic_Models(self, X, y, threshold=0.5, test_size=0.2, test_case=1, X_ex_test=pd.DataFrame(), y_ex_test=pd.DataFrame()):
-        '''        
+        '''
         Lightweight script to test many models and find winners
         :param X_train: training split
         :param y_train: training target vector
@@ -508,20 +508,20 @@ class ML_models():
 
         # ROC curve/ Confusion Matrix/ Feature Importance/ Learning Curve
         if len(np.unique(y_test)) == 2:
-            self.ROC_curve([x[0] for x in models], FRP_list, TRP_list, thresholds_list, best_thres)
-            self.confusion_matrix_plot(y_test, y_pred_RF, 'RF')
-            self.confusion_matrix_plot(y_test, y_pred_RF, 'RF', percentage=0)
+            ROC_imag = self.ROC_curve([x[0] for x in models], FRP_list, TRP_list, thresholds_list, best_thres)
+            conf_imag1 = self.confusion_matrix_plot(y_test, y_pred_RF, 'RF')
+            conf_imag2 = self.confusion_matrix_plot(y_test, y_pred_RF, 'RF', percentage=0)
 
         '''Visualization of Results'''
         # self.base_model_performance(df_results, self.scoring_column_names)
         # self.precision_recall_plot(clf_RF, X_train, y_train, 'RF')
-        self.feature_importances_plot(X_train, clf_RF, 'RF')
+        feat_import_image = self.feature_importances_plot(X_train, clf_RF, 'RF')
         # self.plot_learning_curve(clf_RF, 'RF', X_train, y_train, (0.2, 1.01), kfold, 4, np.linspace(.1, 1.0, 10))
         self.table_in_PDF(df_results)
 
         print('\n ================ ML Analysis Completed ================')
         print(df_results)
-        return df_results
+        return df_results, [ROC_imag, conf_imag1, conf_imag2, feat_import_image]
 
     def ML_Basic_Models_Regression(self, X, y, threshold=0.5, test_size=0.2, test_case=1):
 

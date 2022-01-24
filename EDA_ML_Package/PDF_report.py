@@ -79,7 +79,7 @@ class PDF_reporting():
         self.Story.append(table)
         self.add_text("")
 
-        return table
+        # return table
 
     def image_in_PDF(self, plot, x=7, y=2.5):
 

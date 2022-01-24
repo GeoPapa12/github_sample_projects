@@ -60,14 +60,15 @@ y = data['Survived']
 X_tr, pipeline_tr = DA.data_transformation(X)
 DA.descriptive_analysis(X_tr)
 
-results_NN, _ = ΝΝ.chain_optimazation(X_tr, y, hidden_layers=[[6], [6, 4], [6, 4, 2]])
+results = ML.ML_Basic_Models(X_tr, y)
+
 
 sys.exit()
 
-results = ML.ML_Basic_Models(X_tr, y)
 results_NN = ΝΝ.create_and_fit_model(X_tr, y, 10, 350, lyrs=[10, 7, 3], verbose=0, dr=0.3)
 results_NN = ΝΝ.create_and_fit_model(X_tr, y, 10, 350, lyrs=[5, 2], verbose=0, dr=0)
 
+results_NN, _ = ΝΝ.chain_optimazation(X_tr, y, hidden_layers=[[6], [6, 4], [6, 4, 2]])
 
 # results_opt_RF, best_params, random_grid = ML.opt_ramdom_forest(X_tr, y, n_iter=20, verbose=0)
 

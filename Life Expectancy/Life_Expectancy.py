@@ -8,10 +8,14 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import scale
 import os
 import math
+import warnings
+import sys
 
+sys.path.append("..")
 from EDA_ML_Package.EDA_functions import Data_Analysis
 from EDA_ML_Package.PDF_report import PDF_reporting
 
+warnings.filterwarnings('ignore')
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 15)
 
@@ -30,7 +34,7 @@ def impute_dataset(df):
     return df
 
 
-def spec_country_among_others(countryX, category_field):
+def spec_country_among_others(countryX, category_field, x=6, y=3):
     colors_blue = ["#132C33", "#264D58", '#17869E', '#51C4D3', '#B4DBE9']
     colors_dark = ["#1F1F1F", "#313131", '#636363', '#AEAEAE', '#DADADA']
     colors_red = ["#331313", "#582626", '#9E1717', '#D35151', '#E9B4B4']
@@ -126,7 +130,7 @@ for clm in df.columns:
 
 # ------------------- Loading Data ------------------------------
 
-DA.descriptive_analysis(df)
+DA.descriptive_analysis(df, describe_opt=0)
 DA.nan_heatmap(df)
 DA.heatmap_corr_plot_2(df)
 
@@ -142,10 +146,10 @@ df = DA.outlier_winsorize(df, ['GDP'])  # modify outliers
 df = impute_dataset(df)
 plt_obj = DA.box_hist_EDA_plots(df, no_rows=3)
 PDF.add_text("Box Plot", style="Heading1", fontsize=24)
-PDF.image_in_PDF(plt_obj, x=6, y=3)
+PDF.image_in_PDF(plt_obj, x=7, y=4)
 plt_obj = DA.box_hist_EDA_plots(df, 'hist', no_rows=3)
 PDF.add_text("Hist Plot", style="Heading1", fontsize=24)
-PDF.image_in_PDF(plt_obj, x=6, y=3)
+PDF.image_in_PDF(plt_obj, x=7, y=4)
 
 sns.pairplot(df, x_vars=["Hepatitis B"], y_vars=["Life expectancy"],
              hue="Status", markers=["o", "x"], height=8, kind="reg")
@@ -166,10 +170,15 @@ sns.barplot(x='Life expectancy', y=df_region_mean.index, data=df_region_mean, ax
 sns.barplot(x='Happiness Score', y=df_region_mean.index, data=df_region_mean, ax=axes[1], palette='RdYlGn')
 
 PDF.add_text("Greece In Europe", style="Heading1", fontsize=24, page_break=1)
-spec_country_among_others("Greece", "Alcohol")
-spec_country_among_others("Greece", "Happiness Score")
+spec_country_among_others("Greece", "Alcohol", x=7, y=2)
+spec_country_among_others("Greece", "Happiness Score", x=7, y=2)
+spec_country_among_others("Greece", "Life expectancy", x=7, y=2)
+spec_country_among_others("Greece", "Schooling", x=7, y=2)
+
 PDF.add_text("France In Western Europe", style="Heading1", fontsize=24, page_break=1)
-spec_country_among_others("France", "Schooling")
-spec_country_among_others("France", "Life expectancy")
+spec_country_among_others("France", "Schooling", x=7, y=2)
+spec_country_among_others("France", "Life expectancy", x=7, y=2)
+spec_country_among_others("France", "Life expectancy", x=7, y=2)
+spec_country_among_others("France", "Schooling", x=7, y=2)
 
 PDF.generate_report('Life Expectancy')
