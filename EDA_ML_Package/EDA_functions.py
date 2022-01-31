@@ -478,7 +478,9 @@ class Data_Analysis():
         data = data.drop(['percentage', 'count'], axis=1)
         return df_gb
 
-    def bar_plot_count_percentage(self, data, att, attTarget, data2=pd.DataFrame, plotType='Both', reverse=False):
+
+    
+    def bar_plot_count_percentage(self, data, att, attTarget, data2=pd.DataFrame, plotType='Both', reverse=False, xs=0, ys=0):
         """ Creates a bar plot that compares 2 attributes, eg a random att vs
         the target attribute
 
@@ -501,9 +503,9 @@ class Data_Analysis():
                 gb = gb.sort_values(by=[attTarget_X])
                 gb = gb.reset_index(drop=True)
                 if plotType == "Per":
-                    sp.text(p.get_x() + p.get_width()/2., height + 0, str(height) + "\n(" + str(gb['count'][jj]) + ")", ha="center", fontsize=13)
+                    sp.text(p.get_x() + p.get_width()/2., height + 0, str(height) + "\n(" + str(gb['count'][jj]) + ")", ha="center", fontsize=14)
                 else:
-                    sp.text(p.get_x() + p.get_width()/2., height + 0, str(height) + "\n(" + str(gb['Pop Per'][jj]) + ")", ha="center", fontsize=13)
+                    sp.text(p.get_x() + p.get_width()/2., height + 0, str(height) + "\n(" + str(gb['Pop Per'][jj]) + ")", ha="center", fontsize=14)
 
         def plot_details(ii, subSize, attTarget_X, plotType, axis_legend_flag=0):
             # Setting the plot parameters
@@ -528,18 +530,32 @@ class Data_Analysis():
             df_list = [data]
         else:
             df_list = [data, data2]
+
+        if len(df_list) == 2:
+            len_df_list = 1.25
+        else:
+            len_df_list = 1
+
         # Setting the size of the plot/ affected by the number of subplots
         subSize = 2*len(attTarget) if plotType == 'Both' else 1*len(attTarget)
-        plot_x_size = 3*subSize*len(df_list)*1.5 if ((subSize > 2) or (len(df_list) == 2)) else 14
-        plot_y_size = 4*subSize*len(df_list) if subSize > 2 else 8
+
+        if ((xs == 0) or (ys == 0)):
+            plot_x_size = 4*subSize*len_df_list if subSize > 2 else 14
+            plot_y_size = 3*subSize*len_df_list if subSize > 2 else 8
+            print("...")
+        else:
+            plot_x_size = xs
+            plot_y_size = ys
+
+        print(plot_x_size, plot_y_size)
+
         fig, axes = plt.subplots(subSize, 1*len(df_list), figsize=(plot_x_size, plot_y_size))
         if isinstance(axes, np.ndarray) is False:
             axes = [axes]
         if isinstance(axes[0], np.ndarray) is False:
             # axes = [axes]
             axes = np.reshape(axes, (-1, len(df_list)))
-        print(axes.shape)
-        print(axes)
+
         att_original = att
 
         df = data.copy(deep=True)
@@ -579,10 +595,13 @@ class Data_Analysis():
                     plot_details(ii, subSize, attTarget_X, plotType, axis_legend_flag=1)
                     sp.set_ylabel('Percentage', fontsize=18)
 
+
         fig.tight_layout()
         figure = sp.get_figure()
         plt.show()
-        plt.close(figure)
+        plt.close(figure) 
+
+
 
     def hist_plot(self, data):
         """ Creates a histogram of the attributes
